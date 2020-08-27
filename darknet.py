@@ -281,7 +281,7 @@ netMain = None
 metaMain = None
 altNames = None
 
-def performDetect(flag,imagePath="data/0007.png", thresh= 0.75, configPath = "./cfg/yolov3.cfg", weightPath = "yolov3.weights", metaPath= "./data/coco.data", showImage= True, makeImageOnly = False, initOnly= False):
+def performDetect(flag,imagePath="data/0007.png", thresh= 0.75, configPath = "./cfg/new_yolov3.cfg", weightPath = "./backup/new_yolov3_13200.weights", metaPath= "./data/obj.data", showImage= True, makeImageOnly = False, initOnly= False):
     """
     Convenience function to handle the detection and returns of objects.
 
@@ -407,9 +407,9 @@ def performDetect(flag,imagePath="data/0007.png", thresh= 0.75, configPath = "./
                 rr4, cc4 = draw.polygon_perimeter([x[1] for x in boundingBox], [x[0] + 1 for x in boundingBox], shape= shape)
                 rr5, cc5 = draw.polygon_perimeter([x[1] for x in boundingBox], [x[0] - 1 for x in boundingBox], shape= shape)
                 #boxColor = (int(255 * (1 - (confidence ** 2))), int(255 * (confidence ** 2)), 0)
-                if label == 'car':
+                if label == 'Car':
                     boxColor = (0, 0, 205)
-                elif label == 'bike':
+                elif label == 'Bike':
                     boxColor = (255, 0, 0)
                 else:
                     boxColor = (255, 255, 0)

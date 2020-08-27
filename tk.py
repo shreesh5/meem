@@ -43,6 +43,7 @@ paths = []
 #Function to create video
 def writeVideo():
 	global yolo_bb
+	global paths, NUMPROCESSES, IMGPATH, EXT, bboxes, firstframe, curid, cols, procid, misscount
 	meem_paths = []
 	yolo_paths = []
 	meem_res = IMGPATH + '/result-meem'
@@ -57,7 +58,7 @@ def writeVideo():
 	img = cv2.imread(meem_paths[0])
 	height, width, layers = img.shape
 	size = (640*2, 360)
-	out = cv2.VideoWriter('result.avi',cv2.VideoWriter_fourcc(*'DIVX'), 25, size)
+	out = cv2.VideoWriter('result-test.avi',cv2.VideoWriter_fourcc(*'DIVX'), 12, size)
 	for p in range(len(meem_paths)):
 		meem = cv2.imread(meem_paths[p],cv2.IMREAD_COLOR)
 		meem_resize = cv2.resize(meem,(640,360))
@@ -67,6 +68,16 @@ def writeVideo():
 		out.write(vis)
 	out.release()
 	tkMessageBox.showinfo("Video Complete", "The output video has been saved to the root folder")
+	paths = []
+	yolo_paths = []
+	NUMPROCESSES = 0
+	IMGPATH = ''
+	bboxes = []
+	firstframe = []
+	curid = 1
+	cols = []
+	procid = dict()
+	misscount = dict()
 	
 #Function to transform YOLO input for MEEM
 def transformBB(bbox):
@@ -86,9 +97,9 @@ def intersection(a,b):
     if w<0 or h<0:
       return 0
     if (a[2]*a[3]>b[2]*b[3]):
-        den=float(a[2]*a[3])
-    else:
         den=float(b[2]*b[3])
+    else:
+        den=float(a[2]*a[3])
     return(float(w*h/den))
 
 #Function to give input to each MEEM subprocess
@@ -128,7 +139,7 @@ def drawrectangles(img_location, x, cols, confidence_score, frame, runningproces
         #    continue
         topleft= x[i][0],x[i][1]
         bottomright= x[i][0]+x[i][2],x[i][1]+x[i][3]        
-        cv2.rectangle(img,topleft,bottomright,cols[i],2)
+        cv2.rectangle(img,topleft,bottomright,cols[i],5)
     	cv2.putText(img,'{}'.format(indexes[i]), (x[i][0], x[i][1]-30), 0, 0.8, (0, 255, 0), 2, 2)
     meem_respath = img_location[0:-9] + '/result-meem/' + img_location[-8:]
     cv2.imwrite(meem_respath,img)
@@ -156,6 +167,19 @@ def getPath():
 	for path in os.listdir(filename):
 		if(path[-3:]=='jpg'):
 			paths.append(os.path.abspath(os.path.join(filename,path)))
+	print(len(paths))
+	if len(paths) == 0:
+		lflag = 0
+		while lflag == 0:
+			print("Directory has no frames. Please enter correct path")
+			filename = tkFileDialog.askdirectory()
+			print(filename)
+			IMGPATH = filename
+			for path in os.listdir(filename):
+				if(path[-3:]=='jpg'):
+					paths.append(os.path.abspath(os.path.join(filename,path)))
+			if len(paths) > 0:
+				lflag = 1
 	print(len(paths))
 	if(paths[0][-3:] == 'png' or paths[0][-3:] == 'jpg'):
 		EXT = paths[0][-3:]
@@ -194,16 +218,16 @@ def startTrack():
         runningprocesses = []
         prevcoords = []
 
-        for i in range(1,len(paths)):
-        	yolo_bb.append(performDetect(0,paths[i]))
+        #for i in range(1,len(paths)):
+        #	yolo_bb.append(performDetect(0,paths[i]))
 
         for i in range(NUMPROCESSES):
-        	p = subprocess.Popen('python c-test.py', shell = True, stdout = subprocess.PIPE, stdin = subprocess.PIPE)
+        	p = subprocess.Popen('python a.py', shell = True, stdout = subprocess.PIPE, stdin = subprocess.PIPE)
         	freeprocesses.append(p)
 
         for i, frame in enumerate(firstframe):
         	if frame == 1:
-        		cols.append([255, 0, 0])
+        		cols.append([0, 0, 255])
         		addbox(bboxes[i], firstframe[i], freeprocesses, runningprocesses)
         
         count = 1
@@ -219,9 +243,12 @@ def startTrack():
         		for i, conn in enumerate(runningprocesses):
         			msg = conn.stdout.readline()
         			if re.match(r'^-?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+ -?\d+\.\d+', msg) is None:
-        				remove_list.append(i)
         				print('Received wrong input')
-        				continue
+        				for v, vconn in enumerate(runningprocesses):
+        					remove_list.append(v)
+        				#remove_list.append(i)
+        				#continue
+        				break
         			msg = [ float(z) for z in msg.split(' ') ]
 
         			if msg[-1] < THRESHOLD:
@@ -234,9 +261,9 @@ def startTrack():
         					killprocesses(runningprocesses, cols, remove_list)
 
         					print('Opened new process')
-        					p = subprocess.Popen('python c-test.py', shell = True, stdout = subprocess.PIPE, stdin = subprocess.PIPE)
+        					p = subprocess.Popen('python a.py', shell = True, stdout = subprocess.PIPE, stdin = subprocess.PIPE)
         					freeprocesses.append(p)
-        					cols.append([255, 255, 0])
+        					cols.append([0, 0, 255])
 
         					new_bb = performDetect(1,paths[global_frame-1])
         					for r in range(len(new_bb)):
@@ -289,11 +316,9 @@ def startTrack():
         			msg = msg[:4]
         			msg = [ int(m) for m in msg]
         			coords.append(msg)
-        			'''
         			if(i==0):
         				yolo_bb.append(performDetect(0,paths[count]))
         				count = count + 1
-        			'''
         		prevcoords = coords
         		killprocesses(runningprocesses, cols, remove_list)
         		if not runningprocesses:
@@ -302,15 +327,15 @@ def startTrack():
         		meem_path = drawrectangles(paths[global_frame-1], coords, cols, confidence_score, global_frame, runningprocesses)
         		yolo_img = Image.open(yolo_bb[count-1])
         		meem_img = Image.open(meem_path)
-        		#yolo_img = yolo_img.resize((576, 432), Image.ANTIALIAS)
-        		#meem_img = meem_img.resize((576, 432), Image.ANTIALIAS)
+        		yolo_img = yolo_img.resize((576, 432), Image.ANTIALIAS)
+        		meem_img = meem_img.resize((576, 432), Image.ANTIALIAS)
         		yolo_img = ImageTk.PhotoImage(yolo_img)
         		meem_img = ImageTk.PhotoImage(meem_img)
         		panel.configure(image = yolo_img)
         		panel1.configure(image = meem_img)
         		root.update_idletasks()
         		time.sleep(0.01)
-        		count += 1
+        		#count += 1
         		global_frame += 1
 
         except KeyboardInterrupt:
